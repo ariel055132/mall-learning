@@ -9,3 +9,6 @@ target/
 .settings/
 .classpath
 .project
+
+# Local SSH tunnel configuration #
+/.db-tunnel.env

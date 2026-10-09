@@ -11,6 +11,24 @@
 
 mall学习教程，架构、业务、技术要点全方位解析。mall项目（60k+star）是一套电商系统，使用现阶段主流技术实现。涵盖了SpringBoot、MyBatis、Elasticsearch、RabbitMQ、Redis、MongoDB、MySQL等技术，采用Docker容器化部署。
 
+本 repo 的模組、架構與修改位置索引請見 [程式碼與架構導覽](CODEBASE_MAP.md)。
+
+## PostgreSQL SSH tunnel
+
+使用根目錄的 [db-tunnel.sh](db-tunnel.sh) 管理本機到 DB server 的 SSH tunnel，需要 Bash 與 OpenSSH。首次設定時，若尚無 `.db-tunnel.env`，將 [.db-tunnel.env.example](.db-tunnel.env.example) 複製為 `.db-tunnel.env`，填入 `TUNNEL_SSH_TARGET`。本機設定已加入 `.gitignore`；私鑰與 DB 密碼不放入 repo。
+
+首次連到 server 時，先用一般 `ssh user@server` 核對並接受主機金鑰。有密語的私鑰先執行 `ssh-add ~/.ssh/id_ed25519` 解鎖，再從 repo 根目錄執行：
+
+```bash
+./db-tunnel.sh start   # 在背景建立；重複執行不會重開
+./db-tunnel.sh status  # 執行中回傳 0，未執行回傳 1
+./db-tunnel.sh stop    # 關閉；已停止時可安全重複執行
+```
+
+預設路徑為 `127.0.0.1:15432 → SSH server → 127.0.0.1:5432`。DataGrip 可連本機 `127.0.0.1:15432`，並填入實際 PostgreSQL 帳密；沿用此通道時不用再啟用 DataGrip 的 SSH tunnel。`start`／`status` 檢查的是 SSH 通道狀態，不代表遠端 DB 或帳密已驗證。
+
+修改連線設定前先 `stop`。關閉終端視窗不會停止背景 tunnel，重新開機或 SSH 斷線後需重新 `start`。執行狀態與日誌保存在 repo 外的暫存目錄；可用 `DB_TUNNEL_CONFIG=/path/to/config ./db-tunnel.sh start` 選擇另一份可信任的本機設定。此腳本不會將現有 MySQL 範例自動轉換成 PostgreSQL。
+
 ## 教程网站
 
 - 文档教程：[https://www.macrozheng.com](https://www.macrozheng.com)
