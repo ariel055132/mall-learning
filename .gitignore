@@ -12,3 +12,4 @@ target/
 
 # Local SSH tunnel configuration #
 /.db-tunnel.env
+/db-tunnel.sh
