@@ -325,12 +325,14 @@ mvn -f mall-tiny-jenkins/pom.xml compile
 
 ### 8.4 PostgreSQL SSH tunnel
 
-增量更新日期：2026-10-09；此段只涵蓋本機 tunnel 腳本與使用方式，其他模組仍以原盤點範圍為準。
+增量更新日期：2026-10-11；此段以 `d55868c` 加本機修改檢查 tunnel 腳本與使用方式，其他模組仍以原盤點範圍為準。
 
 - [db-tunnel.sh](db-tunnel.sh) 使用 OpenSSH control socket 管理 `start`／`stop`／`status`，本機固定綁定 `127.0.0.1`；server、port、私鑰路徑由 Git 忽略的本機設定提供，範本為 [.db-tunnel.env.example](.db-tunnel.env.example)。
 - 使用方式見 [README](README.md#postgresql-ssh-tunnel)。腳本只管理 SSH 通道，不修改 Spring datasource、SQL 或 PostgreSQL 帳密；SSH 存活不等於 DB 登入成功。
+- macOS 使用系統 `/usr/bin/ssh`，透過 `UseKeychain=yes`／`AddKeysToAgent=yes` 支援 agent 清空後由鑰匙圈解鎖；首次保存私鑰密語使用 `/usr/bin/ssh-add --apple-use-keychain <私鑰路徑>`。其他系統沿用 PATH 中的 `ssh` 與 agent。腳本目前被 `.gitignore` 排除，修正只存在本機；設定範本在 `f27430c` revert 後缺失，已有 `.db-tunnel.env` 的本機可繼續使用。
 - 語法檢查：`bash -n db-tunnel.sh`。生命週期驗證應使用 `DB_TUNNEL_CONFIG` 指向獨立的本機 port／狀態目錄，避免中斷正在使用的 tunnel。
 - 2026-10-09 已通過語法檢查，並在獨立本機 port 實測建立、重複啟動、狀態查詢、PostgreSQL 協定回應、關閉與重複關閉；原有 tunnel 保持執行。此驗證未測試 DB 帳密或 application。
+- 2026-10-11 已通過語法檢查；在獨立 port 且 `SSH_AUTH_SOCK=/dev/null`（不使用現有 agent）的情況下，實測鑰匙圈解鎖、啟動／重複啟動、狀態查詢、PostgreSQL SSL 協定回應、關閉／重複關閉均通過。本機 `15432` tunnel 已啟動並保持執行；未測試 DB 帳密或 application。
 
 ## 9. 測試現況與修改後的驗證入口
 
