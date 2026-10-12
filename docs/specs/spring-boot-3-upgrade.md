@@ -7,6 +7,7 @@
 | 分支 | `feat/spring-boot-3-upgrade` |
 | 建立日期 | 2026-10-11 |
 | 核准 | 2026-10-12；依據 docs/spec-reviews/spring-boot-3-upgrade-p2-codex.md（APPROVE）。人類決定在 `spring-boot-3-upgrade` 分支（非 `master`）核准與實作；`review.sh` 需以 `--base <本核准 commit>` 執行 |
+| 修訂 | 2026-10-13；加入 D-17（`mall-tiny-02` 執行期改用 PostgreSQL）與 AC-17，人類核准。`review.sh` 改以 `--base <本修訂 commit>` 執行 |
 
 ## 1. 背景與目標
 
@@ -49,6 +50,10 @@ AC-1～AC-5 由第 6 節機器關卡自動驗證，AC-15 的 grep 部分也在�
   3. 以 `macro/123456`（`ROLE_USER`）的 token 呼叫 `GET /brand/list` → `code=403` JSON。
   4. 不帶 token `GET /v3/api-docs` → 200（白名單 GET 放行）。
   5. 不帶 token `PUT /favicon.ico` → `code=401` JSON（白名單只放行 GET／POST，未擴大到其他 method）。
+- **AC-17**（手動＋程式碼審查，D-17）：`mall-tiny-02` 改連 PostgreSQL：
+  1. 程式碼審查：`mall-tiny-02/pom.xml` 以 `org.postgresql:postgresql`（runtime、不寫 version）取代 MySQL driver；`application.yml` 的 datasource 為 `jdbc:postgresql://...`，密碼只來自 `PG_PASSWORD` 環境變數，repo 中不含實際密碼；`pagehelper.helper-dialect` 為 `postgresql`；`PmsBrandMapper.xml` 的 `insert`／`insertSelective` 不含 `LAST_INSERT_ID()`，改用 `useGeneratedKeys`。其他模組的 datasource 與 driver 仍為 MySQL。
+  2. 在已匯入 `document/sql/mall_tiny_postgre.sql` 的 PostgreSQL 上（設定 `PG_PASSWORD`）啟動 `mall-tiny-02`，`GET /brand/list?pageNum=1&pageSize=3` 回傳 `code=200`、`data.list` 長度 3、`data.total` 等於 `pms_brand` 筆數。
+  3. `POST /brand/create` 回傳 `code=200` 且 `data.id` 非空；以該 id `GET /brand/{id}` 可讀回；驗證後刪除該筆資料。
 
 ## 3. 範圍
 
@@ -64,12 +69,13 @@ AC-1～AC-5 由第 6 節機器關卡自動驗證，AC-15 的 grep 部分也在�
 - `application*.yml`：`spring.redis.*` → `spring.data.redis.*`、移除 `spring.mvc.pathmatch.matching-strategy`、Swagger 白名單路徑、新增 `springdoc.packages-to-scan`、`management.endpoint.shutdown.enabled` → `access`、alipay 的 `returnUrl`。
 - Docker 基底映像 `openjdk:8` → `eclipse-temurin:21-jre`（Dockerfile 與 Fabric8 設定）。
 - `CODEBASE_MAP.md` 中與版本、Swagger 設定類別、設定鍵直接相關的導覽與段落（§2、§3.1、§7.3、§8.1、§9 的指定位置，見 AC-15）。
+- `mall-tiny-02` 執行期改用 PostgreSQL（D-17）：driver、`application.yml` 的 datasource 與 PageHelper 方言、`PmsBrandMapper.xml` 的主鍵回填；`CODEBASE_MAP.md` 中說明該模組資料庫的段落。
 
 ### 3.2 非目標（禁止事項）
 
 - 不重構、不重新命名與本任務無關的程式碼（`Swagger2Config` → `SpringDocConfig` 為本任務的一部分，例外）。
 - 不做無關的格式化（例如整檔 reformat、import 重新排序）；只移除／新增本次變更直接涉及的 import。既有程式註解維持原本的簡體中文，新增註解比照周邊風格。
-- 不新增或升級依賴，除非已列在第 4 節版本表。特別是：**不升級 JJWT（維持 0.9.1）、不升級 Hutool、MinIO、Alipay SDK、mybatis-generator-core、Fabric8 plugin、velocity**。
+- 不新增或升級依賴，除非已列在第 4 節版本表或 D-17（`mall-tiny-02` 的 PostgreSQL driver）。特別是：**不升級 JJWT（維持 0.9.1）、不升級 Hutool、MinIO、Alipay SDK、mybatis-generator-core、Fabric8 plugin、velocity**。
 - 不變更任何 HTTP API 路徑、參數、回應格式、錯誤碼與權限規則；Swagger UI／API docs 網址變更除外（AC-8）。不新增 trailing slash 相容設定。
 - 不升級到 Spring Boot 4.x；不把 `AntPathRequestMatcher` 改為 `PathPatternRequestMatcher`（屬 Boot 4 遷移範圍）。
 - 不重新執行 MyBatis Generator／MyBatis-Plus 產碼器重新產生 model 或 mapper；既有產生檔的註解以手動（文字替換）方式改寫。
@@ -141,6 +147,7 @@ AC-1～AC-5 由第 6 節機器關卡自動驗證，AC-15 的 grep 部分也在�
 | `mall-tiny-plus`：`com.baomidou:mybatis-plus-boot-starter:3.5.3` | `com.baomidou:mybatis-plus-spring-boot3-starter:3.5.17` **以及** 新增 `com.baomidou:mybatis-plus-jsqlparser:3.5.17`（`PaginationInnerInterceptor` 自 3.5.9 起移到此 artifact，套件名稱不變） |
 | `mall-tiny-plus`：`com.baomidou:mybatis-plus-generator:3.5.3` | `3.5.17` |
 | docker／jenkins／alipay 的 Fabric8 `<from>openjdk:8</from>` | `<from>eclipse-temurin:21-jre</from>` |
+| `mall-tiny-02`：`mysql:mysql-connector-java:${mysql-connector.version}` | `org.postgresql:postgresql`（`runtime` scope，**不寫 version**，由 Boot 管理；D-17） |
 
 **`mall-tiny-jenkins/pom.xml`**（獨立 parent，不繼承根 POM）：parent 改 `3.5.16`、`java.version` 改 `21`，properties 與依賴座標比照根 POM 與上表同步修改，並加入同樣的 `<dependencyManagement>` 區塊。
 
@@ -356,7 +363,8 @@ public class SpringDocConfig {
 | `<M>/J/config/RedisConfig.java`（`mall-tiny`、`03`～`08`、`redis`） | 修改 | §4.9 |
 | `<M>/R/application.yml`（20 個含 `matching-strategy` 的模組） | 修改 | 移除 pathmatch、加 `springdoc.packages-to-scan`；其中 8 個改 `spring.data.redis`、7 個改白名單、`boot` 改 shutdown、`alipay` 改 returnUrl |
 | `mall-tiny-docker/src/main/docker/Dockerfile`、`mall-tiny-jenkins/src/main/docker/Dockerfile` | 修改 | 基底映像 |
-| `CODEBASE_MAP.md` | 修改 | AC-15 指定的 5 處（約第 46、59、268～275、288、351 行） |
+| `mall-tiny-02/pom.xml`、`mall-tiny-02/R/application.yml`、`mall-tiny-02/R/com/macro/mall/tiny/mbg/mapper/PmsBrandMapper.xml` | 修改 | D-17：PostgreSQL driver、datasource、PageHelper 方言、`useGeneratedKeys` |
+| `CODEBASE_MAP.md` | 修改 | AC-15 指定的 5 處（約第 46、59、268～275、288、351 行）；另依 D-17 補充 `mall-tiny-02` 使用 PostgreSQL 的說明 |
 | `docs/specs/spring-boot-3-upgrade.md` | 修改 | 僅第 9 節 |
 
 ## 6. 驗證指令
@@ -407,6 +415,7 @@ echo 'ALL CHECKS PASSED'
 | AC-14 | 程式碼審查 | `CommentGenerator.java`、`MyBatisPlusGenerator.java` |
 | AC-15 | 機器關卡（grep）＋程式碼審查 | §6 最後一個 grep；`CODEBASE_MAP.md` 指定 5 處 |
 | AC-16 | 手動（含錯誤路徑） | `mvn -pl mall-tiny-boot spring-boot:run` + curl 五步驟 |
+| AC-17 | 程式碼審查＋手動 | `mall-tiny-02` 的 POM／YAML／mapper；`PG_PASSWORD=... mvn -pl mall-tiny-02 spring-boot:run` + curl |
 
 ## 8. 邊界情況、風險、開放問題與決議
 
@@ -446,6 +455,7 @@ echo 'ALL CHECKS PASSED'
 | D-14 | 2026-10-12 | SecurityConfig 分 A／B／C 三種變體改寫，各自保留原本的「路徑 × HTTP method」放行集合；`boot` 保留 GET／POST 限定與獨立的 `/admin/login` 放行；新增 AC-16 | 原範本會讓 `mall-tiny-boot` 匿名登入被擋、白名單擴大到所有 method（`mall-tiny-boot/.../SecurityConfig.java:56-62`），違反 §3.2 | Codex P1-1 |
 | D-15 | 2026-10-12 | AC-12 改為驗證 Jackson `WRAPPER_ARRAY` 格式，並加入「升級後讀取升級前寫入的快取」相容性步驟 | `activateDefaultTyping(ptv, NON_FINAL)` 兩參數版本使用 `WRAPPER_ARRAY`，不會產生 `@class`；§4.9 要求格式不變，原 AC 自相矛盾 | Codex P1-2 |
 | D-16 | 2026-10-12 | `CODEBASE_MAP.md` 更新範圍擴大到所有指向 `Swagger2Config`／`matching-strategy`／`spring.redis.*` 的導覽位置，並加入機器關卡 grep | 只改版本表會讓導覽指向已刪除的類別與設定鍵（`CODEBASE_MAP.md:46`、`:59`、`:351`） | Codex P1-3 |
+| D-17 | 2026-10-12 | `mall-tiny-02` 執行期改連既有 PostgreSQL（經 SSH tunnel `127.0.0.1:15432`）：driver 改 `org.postgresql:postgresql`、datasource 帳號／database／schema 可由 `PG_*` 環境變數覆寫且密碼只來自 `PG_PASSWORD`、PageHelper 方言 `postgresql`、`PmsBrandMapper.xml` 以 `useGeneratedKeys` 取代 `LAST_INSERT_ID()`；新增 AC-17。範圍僅限 `mall-tiny-02` 的執行期，`generator.properties`／`generatorConfig.xml` 維持 MySQL、不重新產碼，其他模組仍用 MySQL | 使用者要以既有的遠端 PostgreSQL（`document/sql/mall_tiny_postgre.sql`）實際驗證 `mall-tiny-02`；`LAST_INSERT_ID()` 為 MySQL 專屬，PostgreSQL 必須改用 JDBC generated keys 才能回填主鍵 | 人類 |
 
 ---
 
