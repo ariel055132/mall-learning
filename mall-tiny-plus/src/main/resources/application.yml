@@ -6,9 +6,6 @@ spring:
     url: jdbc:mysql://localhost:3306/mall_tiny?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
     password: root
-  mvc:
-    pathmatch:
-      matching-strategy: ant_path_matcher
 
 mybatis-plus:
   mapper-locations: classpath:/mapper/**/*.xml #指定mapper.xml路径
@@ -18,3 +15,6 @@ mybatis-plus:
   configuration:
     auto-mapping-behavior: partial #只对非嵌套的 resultMap 进行自动映射
     map-underscore-to-camel-case: true #开启自动驼峰命名规则映射
+
+springdoc:
+  packages-to-scan: com.macro.mall.tiny.modules

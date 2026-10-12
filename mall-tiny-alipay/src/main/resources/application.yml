@@ -6,9 +6,6 @@ spring:
     url: jdbc:mysql://localhost:3306/mall_tiny?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
     password: root
-  mvc:
-    pathmatch:
-      matching-strategy: ANT_PATH_MATCHER
 
 mybatis:
   mapper-locations:
@@ -20,5 +17,8 @@ alipay:
   appId: your appId
   alipayPublicKey: your alipayPublicKey
   appPrivateKey: your appPrivateKey
-  returnUrl: http://localhost:8080/swagger-ui/
+  returnUrl: http://localhost:8080/swagger-ui/index.html
   notifyUrl:
+
+springdoc:
+  packages-to-scan: com.macro.mall.tiny.controller
