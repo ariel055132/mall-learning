@@ -461,10 +461,66 @@ echo 'ALL CHECKS PASSED'
 
 ## 9. 實作備註（由實作者填寫）
 
-<Codex 完成後填寫。審查者會把這一節視為「待驗證的自述」，不會當作證據。
-無則寫「無」。>
+實作日期：2026-10-12；分支：`spring-boot-3-upgrade`；基準 HEAD：`bde7987`。變更保留在工作目錄，未執行 commit／push。
 
 - **偏離 spec 之處與原因**：
-- **未完成的項目**：
+  - 首次執行 §6 時，`mall-tiny-plus` 編譯失敗：`package com.baomidou.mybatisplus.extension.service does not exist`，`extension.service.impl` 亦不存在。指定的 MyBatis-Plus 3.5.17 已將這兩個類別移至 `com.baomidou.mybatisplus.spring.service`／`.impl`，因此在 §5 清單之外，另修改 `modules/pms/service/PmsBrandService.java` 與 `modules/pms/service/impl/PmsBrandServiceImpl.java` 各一個 import；類別、繼承關係與行為不變，未另增依賴。依據為本機 3.5.17 JAR 及上游 [IService](https://github.com/baomidou/mybatis-plus/blob/v3.5.17/mybatis-plus-spring/src/main/java/com/baomidou/mybatisplus/spring/service/IService.java)、[ServiceImpl](https://github.com/baomidou/mybatis-plus/blob/v3.5.17/mybatis-plus-spring/src/main/java/com/baomidou/mybatisplus/spring/service/impl/ServiceImpl.java) 原始碼。
+  - 配合設定遷移，`mall-tiny-boot` 原本的 `springfox.documentation.enabled: true` 區塊替換為 `springdoc.packages-to-scan`（文件仍預設啟用）；`mall-tiny-hutool` 刪除 `mvc` 後一併移除空的 `spring:`。其餘設定值不變。
+- **未完成的項目**：程式與設定遷移已完成；外部服務相關手動驗證尚未完成，詳見下表。本機未提供 MySQL、Redis、Elasticsearch 8.x + IK、MongoDB、RabbitMQ、MinIO，也未發現 Docker／mysql／redis-cli 工具。未匯入 SQL，未驗證升級前後的 Redis 快取互讀。
 - **需要審查者特別注意的地方**：
-- **手動 AC 結果**（AC-6～AC-13，逐條列出：通過／失敗／未驗證，附關鍵輸出）：
+  - Security A／B／C 保留各自的 method 限制與登入規則，僅依規格新增 ERROR dispatch 放行。JWT filter 的 `@Bean` 註冊方式未變；`AntPathRequestMatcher` 的棄用警告為規格接受項目。
+  - 保留 JJWT 0.9.1 與 JAXB 2.3.1；未升級非目標依賴，未新增或修改測試、重新產碼、修改 Compose／部署腳本／教學文件。`mall-tiny-lombok` 直接繼承根 POM 的新版本與 Java target，其模組 POM 無需異動。
+  - 框架升級階段的 `test-compile` 通過代表正式程式與測試程式可編譯；該階段未執行 `test`。後續另執行 `mall-tiny-02` 的既有測試與 PostgreSQL 實測，見 §9.3。均未執行 `package` 或觸發 Fabric8 Docker build。
+  - 以下 HTTP 測試以 `mvn -B -ntp -pl <module> spring-boot:run` 啟動；`02` 使用 8080、`boot` 使用 8088，`04` 另加 `-Dspring-boot.run.arguments=--server.port=8084` 避免衝突。測試後三個應用皆已停止。token 證據已遮蔽。
+
+### 9.1 機器關卡與程式碼核對
+
+環境：Eclipse Temurin **21.0.12.1**、Maven **3.10.0**。將 §6 的 bash 區塊原文擷取至 `/tmp/mall-spring-boot-3-upgrade/verify-section6.sh`，以 `bash -eo pipefail` 執行。sandbox 初次阻擋 Maven 寫入 `~/.m2/repository/.locks`；取得執行權限後完成驗證。後續 §9.3 的 PostgreSQL 設定完成後，再次原樣執行整份腳本，**exit 0**；下列建置時間為最終重跑結果，輸出保存於 `/tmp/mall-spring-boot-3-upgrade/verification.log`。
+
+| 驗證 | 結果與關鍵輸出 |
+|------|----------------|
+| AC-1：根 reactor | 通過；20 個模組與根專案皆 `SUCCESS`，`BUILD SUCCESS`，`Total time: 4.205 s` |
+| AC-1：alipay | 通過；`BUILD SUCCESS`，`Total time: 3.373 s` |
+| AC-1：jenkins | 通過；`BUILD SUCCESS`，`Total time: 3.201 s` |
+| AC-2～AC-5、AC-15 grep | 通過；禁止項目皆無命中，版本／映像正向檢查皆通過，最後輸出 `ALL CHECKS PASSED` |
+| AC-14 | 程式碼核對通過；17 個 `CommentGenerator` 均產生 `@Schema(description = ...)` 並匯入 `Schema`；`mall-tiny-01` 的產碼器未變；MyBatis-Plus 使用 `.enableSpringdoc()`，未執行產碼 |
+| AC-15 文件核對 | 指定五處已更新至 `SpringDocConfig`、`springdoc.packages-to-scan`、`spring.data.redis.*`、Boot 3.5.16／Java 21 與新依賴版本 |
+| 範圍與內容核對 | `git diff --check` 通過；24 份 application YAML 可解析且無重複鍵；框架升級階段的 20 份 YAML 除指定遷移外語意不變，後續僅 `mall-tiny-02` 另依使用者要求改 PostgreSQL（§9.3）；94 份 Controller／model／DTO 的程式本體、非文件註解與描述字串保持不變（依規格捨棄 `ApiModel.value`）；20 個新 springdoc 設定保留原本是否啟用認證的分組 |
+
+第 9 節之前的全部內容與實作前逐位元組一致；SHA-256：`e91d93c46ae520cff6e08e4e481404b4a1fd6ce455056f8c1e7c4fa594d90165`。
+
+### 9.2 手動 AC 結果
+
+| AC | 結果 | 關鍵輸出／未驗證範圍 |
+|----|------|-----------------------|
+| AC-6 | **未驗證** | 缺 MySQL 與匯入後的測試資料，未執行 `mall-tiny-01` 的品牌查詢、筆數比對及該模組 Druid 驗證 |
+| AC-7 | **未驗證** | 缺 MySQL，未實測 `mall-tiny-plus` 分頁與總筆數；編譯及分頁依賴解析已通過 |
+| AC-8 | **通過** | `GET /v3/api-docs` → HTTP 200；`info.title="SwaggerUI演示"`、`tags=[{"name":"PmsBrandController","description":"商品品牌管理"}]`、`paths["/brand/listAll"].get.summary="获取所有品牌列表"`。`GET /swagger-ui/index.html` → 200；`GET /swagger-ui/`、`GET /v2/api-docs` → 404 |
+| AC-9 | **未驗證（部分步驟通過）** | 步驟 1／2／3／5／6 通過：匿名品牌查詢 → `{"code":401,"message":"暂未登录或token已经过期"}`；文件及 UI → HTTP 200；admin 登入 → `{"code":200,"data":{"token":"<nonempty>","tokenHead":"Bearer"}}`；macro token 查 `/brand/list` → `{"code":403,"message":"没有相关权限"}`；6 個品牌 operation 均有 `security:[{"Authorization":[]}]`，登入 operation 無 security，scheme 為 `{"type":"apiKey","name":"Authorization","in":"header"}`。步驟 4 的有效 admin token 品牌查詢需 MySQL，未驗證 |
+| AC-10 | **通過** | 錯誤密碼 → HTTP 200、`{"code":404,"message":"用户名或密码错误","data":null}`；`Bearer abc.def.ghi` → HTTP 200、`code=401` JSON，應用 log 無未捕捉堆疊／500；有效 admin token 呼叫 `/brand/abc` → HTTP 400、`{"status":400,"error":"Bad Request","path":"/brand/abc"}`。log：`Resolved [org.springframework.web.method.annotation.MethodArgumentTypeMismatchException: Method parameter 'id': Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; For input string: "abc"]` |
+| AC-11 | **未驗證** | 缺 Redis，未驗證 `mall-tiny-03` 的驗證碼、key、TTL 與校驗流程 |
+| AC-12 | **未驗證** | 缺 MySQL／Redis，未啟動 master 寫入舊快取，也未驗證新版讀取舊快取、WRAPPER_ARRAY 實際儲存值、SpEL `#id` 與 86400 秒 TTL；僅確認 ObjectMapper 設定未變 |
+| AC-13 | **未驗證** | Elasticsearch 8.x + IK 的匯入／搜尋、MongoDB 的瀏覽歷史、RabbitMQ 的延遲取消訊息、MinIO 的圖片上傳／URL 均因缺服務而未驗證 |
+| AC-16 | **未驗證（部分步驟通過）** | 步驟 1／3／4／5 通過：匿名 admin 登入 → `code=200` 且 token 非空；macro token 查 `/brand/list` → `code=403` JSON；匿名 `/v3/api-docs` → HTTP 200；匿名 `PUT /favicon.ico` → `code=401` JSON。步驟 2 的匿名查詢 → `code=401` 已確認，有效 token 的資料查詢需 MySQL，未驗證 |
+
+HTTP 證據：`/tmp/mall-spring-boot-3-upgrade/openapi-02.json`、`openapi-04.json`、`openapi-boot.json`、`security-http-results.json`；應用 log：同目錄的 `run-02.log`、`run-04.log`、`run-boot.log`。三個啟動 log 均出現 `{dataSource-1} inited`，未出現 `HikariPool`，但這不替代 AC-6 的 MySQL 查詢驗證。Maven 啟動時有既有 `jvnet-nexus-releases` metadata 的 PKIX 憑證警告，三個應用均成功啟動，未修改 repository 或憑證設定。
+
+### 9.3 後續需求：mall-tiny-02 使用現有 PostgreSQL
+
+使用者後續指定先調整 `mall-tiny-02`，使用既有遠端 PostgreSQL 與已啟動的 SSH tunnel。此需求僅套用於該模組的執行期設定、driver 與品牌 mapper；未擴及其他模組，也未修改 §1～8。
+
+- 連線為 `127.0.0.1:15432`，database 為 `mall_tiny`、帳號為 `mall_app`。實際唯讀查核發現只有 `public` 使用者 schema，品牌表是 `public.pms_brand`；使用者原提供的 `mall_tiny` 是 database 名稱，並不存在同名 schema。因此 YAML 使用 `currentSchema=${PG_SCHEMA:public}`，database／user 分別可由 `PG_DATABASE`／`PG_USER` 覆寫；密碼只透過 `PG_PASSWORD` 帶入，未寫入 repo 或驗證日誌。
+- runtime driver 改用 Boot 管理的 `org.postgresql:postgresql:42.7.11`；PageHelper 設定為 `postgresql`。`PmsBrandMapper.xml` 的 `insert`／`insertSelective` 改用 `useGeneratedKeys="true" keyProperty="id" keyColumn="id"`，移除兩個 MySQL `LAST_INSERT_ID()`。未重新產碼；產碼器的連線設定仍為原本 MySQL，不在本次執行期遷移範圍。
+- 指令 `mvn -B -ntp -pl mall-tiny-02 -am -DskipTests test-compile dependency:tree` 通過，模組依賴樹有 PostgreSQL driver、無 MySQL driver。另以占位連線環境變數執行 `mvn -B -ntp -pl mall-tiny-02 -DskipTests=false test`，既有 `contextLoads` 為 1 test、0 failures、0 errors；該測試不代表實際連線成功，實際證據如下。
+
+| 遠端／HTTP 驗證 | 結果 |
+|----------------|------|
+| JDBC 與資料表 | PostgreSQL 18.6；`current_database()=mall_tiny`、`current_schema()=public`、`current_user=mall_app`；`pms_brand` 有 12 筆；帳號具 SELECT／INSERT／UPDATE／DELETE 權限 |
+| 啟動及文件 | Tomcat 在 8080 啟動；`/v3/api-docs`、`/swagger-ui/index.html` 均 HTTP 200 |
+| 查詢／分頁 | `/brand/listAll` 12 筆；`/brand/list?pageNum=1&pageSize=3` 與第 2 頁皆 `code=200`，`total=12`、`totalPage=4`、各回傳 3 筆；既有品牌詳情成功 |
+| 新增／ID 回填 | `POST /brand/create` 建立唯一名稱的驗證品牌，`code=200`、回填 `id=60`；以該 ID 查詢可讀回新增欄位，涵蓋 `insertSelective` 路徑 |
+| 更新／刪除 | `POST /brand/update/60` 後讀回名稱與排序正確；`GET /brand/delete/60` 成功，再查該 ID 回傳 `data=null` |
+| 清理 | 專用驗證資料剩餘 0 筆，原本 12 筆品牌 ID 集合一致；未匯入 SQL、未建立／搬移 schema；正常新增使 identity sequence 前進，未重設 sequence |
+| 最終規格檢查 | 完整重跑 §6，三次 `BUILD SUCCESS`，最後 `ALL CHECKS PASSED`，exit 0 |
+
+證據位於 `/tmp/mall-tiny-02-postgresql/`：`build.log`、`context-test.log`、`database-inspection.log`、`run-live.log`、`live-results.json`。HTTP 驗收由暫存腳本完成，未新增或修改 repo 測試。驗收後 `mall-tiny-02` 已停止，使用者的 SSH tunnel 保持運作；若要人工使用 Swagger UI，設定 `PG_PASSWORD` 後在 repo 根目錄執行 `mvn -pl mall-tiny-02 spring-boot:run`。其餘模組的外部服務限制與 §9.2 未驗證項目維持不變；未執行 commit／push。
