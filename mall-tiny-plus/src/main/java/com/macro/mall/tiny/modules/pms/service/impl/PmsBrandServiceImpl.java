@@ -3,7 +3,7 @@ package com.macro.mall.tiny.modules.pms.service.impl;
 import com.macro.mall.tiny.modules.pms.model.PmsBrand;
 import com.macro.mall.tiny.modules.pms.mapper.PmsBrandMapper;
 import com.macro.mall.tiny.modules.pms.service.PmsBrandService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
 /**

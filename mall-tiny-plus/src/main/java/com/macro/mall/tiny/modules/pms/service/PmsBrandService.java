@@ -1,7 +1,7 @@
 package com.macro.mall.tiny.modules.pms.service;
 
 import com.macro.mall.tiny.modules.pms.model.PmsBrand;
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 
 /**
  * <p>
