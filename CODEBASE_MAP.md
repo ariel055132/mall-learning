@@ -258,7 +258,7 @@ POST /order/generateOrder
 - 多個 MBG 設定的 `targetProject` 使用 `mall-tiny-...\src\main\...` 這類 Windows 相對路徑；在 macOS／Linux 執行前核對工作目錄與輸出路徑，避免寫入錯的目錄或模組。
 - `mall-tiny-plus` 改用 [MyBatisPlusGenerator](mall-tiny-plus/src/main/java/com/macro/mall/tiny/generator/MyBatisPlusGenerator.java)：以 `user.dir + "/mall-tiny-plus"` 組 projectPath，互動輸入模組／表名，讀 `generator.properties`，輸出至 `modules/<模組>/` 及 `R/mapper/<模組>/`。不同於 MBG，不讀 `generatorConfig.xml`。
 - 產碼 DB 設定與應用的 `application.yml` 是兩份獨立來源；只改其中一份不會同步另一份。
-- `mall-tiny-02` 的 PostgreSQL 調整限應用執行期；`generator.properties`／`generatorConfig.xml` 仍是舊 MySQL 產碼設定，尚未遷移，也未重新執行產碼器。
+- `mall-tiny-02` 的 PostgreSQL 調整限應用執行期；`generator.properties`／`generatorConfig.xml` 仍是舊 MySQL 產碼設定，尚未遷移，也未重新執行產碼器。本模組 classpath 已沒有 MySQL driver，產碼器目前無法直接執行；若改回 MySQL 重新產碼，會覆蓋 `PmsBrandMapper.xml` 的 `useGeneratedKeys` 調整並重新產生 `LAST_INSERT_ID()`。
 
 ### 7.3 目前 POM 的版本基準
 
@@ -277,7 +277,7 @@ POST /order/generateOrder
 
 `mall-tiny-02` 的 JDBC 依賴改為 `org.postgresql:postgresql`（runtime scope；Boot 3.5.16 管理為 42.7.11），其餘資料庫模組保留 MySQL driver。
 
-增量更新日期：2026-10-12；此更新只涵蓋 Spring Boot 3 升級的版本、Swagger 導覽與 Redis 設定鍵，以升級分支的未提交修改核對；其他區域仍以原盤點範圍為準。
+增量更新日期：2026-10-12；此更新只涵蓋 Spring Boot 3 升級的版本、Swagger 導覽與 Redis 設定鍵，以 `spring-boot-3-upgrade` 分支的變更核對；其他區域仍以原盤點範圍為準。
 
 ## 8. 執行、建置與部署定位
 
@@ -288,7 +288,7 @@ POST /order/generateOrder
 | 設定區塊 | 對應用途／目前整合版設定 |
 | --- | --- |
 | `server.port` | 整合版 8080；boot／swagger／jenkins 為 8088，多模組同時啟動需避開 port 衝突 |
-| `spring.datasource.*` | MySQL 的 `mall_tiny` 資料庫 |
+| `spring.datasource.*` | MySQL 的 `mall_tiny` 資料庫（`mall-tiny-02` 為 PostgreSQL，見下方說明） |
 | `mybatis.mapper-locations` | 手寫 DAO 與產生的 mapper XML 掃描位置 |
 | `spring.data.redis.*`／`redis.key.*` | Redis 連線／應用驗證碼 key 與 TTL |
 | `jwt.*`／`secure.ignored.urls` | token 設定與安全白名單 |
