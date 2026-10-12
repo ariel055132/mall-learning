@@ -4,8 +4,7 @@ import com.macro.mall.tiny.common.api.CommonPage;
 import com.macro.mall.tiny.common.api.CommonResult;
 import com.macro.mall.tiny.nosql.elasticsearch.document.EsProduct;
 import com.macro.mall.tiny.service.EsProductService;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -21,14 +20,13 @@ import java.util.List;
  * @github https://github.com/macrozheng
  */
 @Controller
-@Api(tags = "EsProductController")
 @Tag(name = "EsProductController", description = "搜索商品管理")
 @RequestMapping("/esProduct")
 public class EsProductController {
     @Autowired
     private EsProductService esProductService;
 
-    @ApiOperation(value = "导入所有数据库中商品到ES")
+    @Operation(summary = "导入所有数据库中商品到ES")
     @RequestMapping(value = "/importAll", method = RequestMethod.POST)
     @ResponseBody
     public CommonResult<Integer> importAllList() {
@@ -36,7 +34,7 @@ public class EsProductController {
         return CommonResult.success(count);
     }
 
-    @ApiOperation(value = "根据id删除商品")
+    @Operation(summary = "根据id删除商品")
     @RequestMapping(value = "/delete/{id}", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult<Object> delete(@PathVariable Long id) {
@@ -44,7 +42,7 @@ public class EsProductController {
         return CommonResult.success(null);
     }
 
-    @ApiOperation(value = "根据id批量删除商品")
+    @Operation(summary = "根据id批量删除商品")
     @RequestMapping(value = "/delete/batch", method = RequestMethod.POST)
     @ResponseBody
     public CommonResult<Object> delete(@RequestParam("ids") List<Long> ids) {
@@ -52,7 +50,7 @@ public class EsProductController {
         return CommonResult.success(null);
     }
 
-    @ApiOperation(value = "根据id创建商品")
+    @Operation(summary = "根据id创建商品")
     @RequestMapping(value = "/create/{id}", method = RequestMethod.POST)
     @ResponseBody
     public CommonResult<EsProduct> create(@PathVariable Long id) {
@@ -64,7 +62,7 @@ public class EsProductController {
         }
     }
 
-    @ApiOperation(value = "简单搜索")
+    @Operation(summary = "简单搜索")
     @RequestMapping(value = "/search/simple", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult<CommonPage<EsProduct>> search(@RequestParam(required = false) String keyword,

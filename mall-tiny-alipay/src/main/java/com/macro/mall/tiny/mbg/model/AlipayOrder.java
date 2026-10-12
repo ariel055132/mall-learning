@@ -1,6 +1,6 @@
 package com.macro.mall.tiny.mbg.model;
 
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
@@ -8,28 +8,28 @@ import java.util.Date;
 public class AlipayOrder implements Serializable {
     private Long id;
 
-    @ApiModelProperty(value = "订单ID")
+    @Schema(description = "订单ID")
     private String orderId;
 
-    @ApiModelProperty(value = "订单标题/商品标题/交易标题")
+    @Schema(description = "订单标题/商品标题/交易标题")
     private String subject;
 
-    @ApiModelProperty(value = "订单总金额")
+    @Schema(description = "订单总金额")
     private BigDecimal totalAmount;
 
-    @ApiModelProperty(value = "交易状态")
+    @Schema(description = "交易状态")
     private String tradeStatus;
 
-    @ApiModelProperty(value = "支付宝交易号")
+    @Schema(description = "支付宝交易号")
     private String tradeNo;
 
-    @ApiModelProperty(value = "买家支付宝账号")
+    @Schema(description = "买家支付宝账号")
     private String buyerId;
 
-    @ApiModelProperty(value = "交易付款时间")
+    @Schema(description = "交易付款时间")
     private Date gmtPayment;
 
-    @ApiModelProperty(value = "用户在交易中支付的金额")
+    @Schema(description = "用户在交易中支付的金额")
     private BigDecimal buyerPayAmount;
 
     private static final long serialVersionUID = 1L;
