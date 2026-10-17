@@ -8,6 +8,7 @@
 | 建立日期 | 2026-10-11 |
 | 核准 | 2026-10-12；依據 docs/spec-reviews/spring-boot-3-upgrade-p2-codex.md（APPROVE）。人類決定在 `spring-boot-3-upgrade` 分支（非 `master`）核准與實作；`review.sh` 需以 `--base <本核准 commit>` 執行 |
 | 修訂 | 2026-10-13；加入 D-17（`mall-tiny-02` 執行期改用 PostgreSQL）與 AC-17，人類核准。`review.sh` 改以 `--base <本修訂 commit>` 執行 |
+| 修訂 | 2026-10-17；加入 D-18（需 MySQL／Redis／其他外部服務的手動 AC 延後至後續 PostgreSQL 遷移任務驗收），人類核准 |
 
 ## 1. 背景與目標
 
@@ -15,7 +16,7 @@ repo 內 22 個範例模組目前建立在 Spring Boot 2.7.5 / Java 8（根 `pom
 
 ## 2. 驗收標準
 
-AC-1～AC-5 由第 6 節機器關卡自動驗證，AC-15 的 grep 部分也在機器關卡內；標註「（手動）」者需啟動應用與外部服務驗證，實作者在 §9 記錄實際結果。
+AC-1～AC-5 由第 6 節機器關卡自動驗證，AC-15 的 grep 部分也在機器關卡內；標註「（手動）」者需啟動應用與外部服務驗證，實作者在 §9 記錄實際結果。依 D-18，AC-6、AC-7、AC-9 步驟 4、AC-11、AC-12、AC-13、AC-16 步驟 2 不在本任務驗收，改由後續 PostgreSQL 遷移任務重新定義並驗收；§9 標示為「延後（D-18）」。
 
 - **AC-1**：在 JDK 21 以上執行 `mvn -B -ntp -DskipTests test-compile`（根 reactor 20 個模組）、以及分別以 `-f mall-tiny-alipay/pom.xml`、`-f mall-tiny-jenkins/pom.xml` 執行同指令時，三次皆 exit 0。（預期結果：輸出含 `BUILD SUCCESS`，無編譯錯誤）
 - **AC-2**：上述三個建置的 `dependency:tree` 輸出中，不存在 `io.springfox:*`、`org.springframework.boot:*:jar:2.*`、`org.mybatis.spring.boot:mybatis-spring-boot-(starter|autoconfigure):jar:2.*`、`mysql:mysql-connector-java`、`com.alibaba:druid-spring-boot-starter`（非 `-3-` 版）、`javax.servlet:javax.servlet-api`。
@@ -456,6 +457,7 @@ echo 'ALL CHECKS PASSED'
 | D-15 | 2026-10-12 | AC-12 改為驗證 Jackson `WRAPPER_ARRAY` 格式，並加入「升級後讀取升級前寫入的快取」相容性步驟 | `activateDefaultTyping(ptv, NON_FINAL)` 兩參數版本使用 `WRAPPER_ARRAY`，不會產生 `@class`；§4.9 要求格式不變，原 AC 自相矛盾 | Codex P1-2 |
 | D-16 | 2026-10-12 | `CODEBASE_MAP.md` 更新範圍擴大到所有指向 `Swagger2Config`／`matching-strategy`／`spring.redis.*` 的導覽位置，並加入機器關卡 grep | 只改版本表會讓導覽指向已刪除的類別與設定鍵（`CODEBASE_MAP.md:46`、`:59`、`:351`） | Codex P1-3 |
 | D-17 | 2026-10-12 | `mall-tiny-02` 執行期改連既有 PostgreSQL（經 SSH tunnel `127.0.0.1:15432`）：driver 改 `org.postgresql:postgresql`、datasource 帳號／database／schema 可由 `PG_*` 環境變數覆寫且密碼只來自 `PG_PASSWORD`、PageHelper 方言 `postgresql`、`PmsBrandMapper.xml` 以 `useGeneratedKeys` 取代 `LAST_INSERT_ID()`；新增 AC-17。範圍僅限 `mall-tiny-02` 的執行期，`generator.properties`／`generatorConfig.xml` 維持 MySQL、不重新產碼，其他模組仍用 MySQL | 使用者要以既有的遠端 PostgreSQL（`document/sql/mall_tiny_postgre.sql`）實際驗證 `mall-tiny-02`；`LAST_INSERT_ID()` 為 MySQL 專屬，PostgreSQL 必須改用 JDBC generated keys 才能回填主鍵 | 人類 |
+| D-18 | 2026-10-17 | 本任務不再驗證需要 MySQL、Redis 或其他外部服務的手動 AC：AC-6、AC-7、AC-9 步驟 4、AC-11、AC-12、AC-13、AC-16 步驟 2 延後到後續「其餘模組改用 PostgreSQL」任務，由該任務的 spec 改以 PostgreSQL 重新定義並驗收。AC-12 步驟 1～2（讀取升級前寫入的快取）不適用，後續只驗證新寫入值的 `WRAPPER_ARRAY` 格式、SpEL `#id` 與 TTL。§8 的「MySQL 5.7 + Connector/J」風險不再追蹤。本任務以機器關卡、分批審查（8/8 PASS）與已通過的 AC-8、AC-10、AC-17 為完成依據後合併；合併後到遷移完成前，`master` 上這些模組的 MySQL／Redis 執行路徑未經實測，人類接受此風險 | 使用者不再安裝 MySQL，repo 的目標資料庫改為 PostgreSQL；MySQL 專屬風險將隨遷移消失，框架層行為（PageHelper／MyBatis starter 3、Druid 3、MyBatis-Plus 分頁、Security 的 DB 查詢、Redis 快取）可在遷移後以 PostgreSQL 一次驗證，避免重複測試；本 repo 為個人學習用途，無既有線上快取或其他使用者 | 人類 |
 
 ---
 
