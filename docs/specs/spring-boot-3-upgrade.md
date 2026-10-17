@@ -495,15 +495,15 @@ echo 'ALL CHECKS PASSED'
 
 | AC | 結果 | 關鍵輸出／未驗證範圍 |
 |----|------|-----------------------|
-| AC-6 | **未驗證** | 缺 MySQL 與匯入後的測試資料，未執行 `mall-tiny-01` 的品牌查詢、筆數比對及該模組 Druid 驗證 |
-| AC-7 | **未驗證** | 缺 MySQL，未實測 `mall-tiny-plus` 分頁與總筆數；編譯及分頁依賴解析已通過 |
+| AC-6 | **延後（D-18）** | 缺 MySQL 與匯入後的測試資料，未執行 `mall-tiny-01` 的品牌查詢、筆數比對及該模組 Druid 驗證 |
+| AC-7 | **延後（D-18）** | 缺 MySQL，未實測 `mall-tiny-plus` 分頁與總筆數；編譯及分頁依賴解析已通過 |
 | AC-8 | **通過** | `GET /v3/api-docs` → HTTP 200；`info.title="SwaggerUI演示"`、`tags=[{"name":"PmsBrandController","description":"商品品牌管理"}]`、`paths["/brand/listAll"].get.summary="获取所有品牌列表"`。`GET /swagger-ui/index.html` → 200；`GET /swagger-ui/`、`GET /v2/api-docs` → 404 |
-| AC-9 | **未驗證（部分步驟通過）** | 步驟 1／2／3／5／6 通過：匿名品牌查詢 → `{"code":401,"message":"暂未登录或token已经过期"}`；文件及 UI → HTTP 200；admin 登入 → `{"code":200,"data":{"token":"<nonempty>","tokenHead":"Bearer"}}`；macro token 查 `/brand/list` → `{"code":403,"message":"没有相关权限"}`；6 個品牌 operation 均有 `security:[{"Authorization":[]}]`，登入 operation 無 security，scheme 為 `{"type":"apiKey","name":"Authorization","in":"header"}`。步驟 4 的有效 admin token 品牌查詢需 MySQL，未驗證 |
+| AC-9 | **部分步驟通過，其餘延後（D-18）** | 步驟 1／2／3／5／6 通過：匿名品牌查詢 → `{"code":401,"message":"暂未登录或token已经过期"}`；文件及 UI → HTTP 200；admin 登入 → `{"code":200,"data":{"token":"<nonempty>","tokenHead":"Bearer"}}`；macro token 查 `/brand/list` → `{"code":403,"message":"没有相关权限"}`；6 個品牌 operation 均有 `security:[{"Authorization":[]}]`，登入 operation 無 security，scheme 為 `{"type":"apiKey","name":"Authorization","in":"header"}`。步驟 4 的有效 admin token 品牌查詢需 MySQL，未驗證 |
 | AC-10 | **通過** | 錯誤密碼 → HTTP 200、`{"code":404,"message":"用户名或密码错误","data":null}`；`Bearer abc.def.ghi` → HTTP 200、`code=401` JSON，應用 log 無未捕捉堆疊／500；有效 admin token 呼叫 `/brand/abc` → HTTP 400、`{"status":400,"error":"Bad Request","path":"/brand/abc"}`。log：`Resolved [org.springframework.web.method.annotation.MethodArgumentTypeMismatchException: Method parameter 'id': Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; For input string: "abc"]` |
-| AC-11 | **未驗證** | 缺 Redis，未驗證 `mall-tiny-03` 的驗證碼、key、TTL 與校驗流程 |
-| AC-12 | **未驗證** | 缺 MySQL／Redis，未啟動 master 寫入舊快取，也未驗證新版讀取舊快取、WRAPPER_ARRAY 實際儲存值、SpEL `#id` 與 86400 秒 TTL；僅確認 ObjectMapper 設定未變 |
-| AC-13 | **未驗證** | Elasticsearch 8.x + IK 的匯入／搜尋、MongoDB 的瀏覽歷史、RabbitMQ 的延遲取消訊息、MinIO 的圖片上傳／URL 均因缺服務而未驗證 |
-| AC-16 | **未驗證（部分步驟通過）** | 步驟 1／3／4／5 通過：匿名 admin 登入 → `code=200` 且 token 非空；macro token 查 `/brand/list` → `code=403` JSON；匿名 `/v3/api-docs` → HTTP 200；匿名 `PUT /favicon.ico` → `code=401` JSON。步驟 2 的匿名查詢 → `code=401` 已確認，有效 token 的資料查詢需 MySQL，未驗證 |
+| AC-11 | **延後（D-18）** | 缺 Redis，未驗證 `mall-tiny-03` 的驗證碼、key、TTL 與校驗流程 |
+| AC-12 | **延後（D-18）** | 缺 MySQL／Redis，未啟動 master 寫入舊快取，也未驗證新版讀取舊快取、WRAPPER_ARRAY 實際儲存值、SpEL `#id` 與 86400 秒 TTL；僅確認 ObjectMapper 設定未變 |
+| AC-13 | **延後（D-18）** | Elasticsearch 8.x + IK 的匯入／搜尋、MongoDB 的瀏覽歷史、RabbitMQ 的延遲取消訊息、MinIO 的圖片上傳／URL 均因缺服務而未驗證 |
+| AC-16 | **部分步驟通過，其餘延後（D-18）** | 步驟 1／3／4／5 通過：匿名 admin 登入 → `code=200` 且 token 非空；macro token 查 `/brand/list` → `code=403` JSON；匿名 `/v3/api-docs` → HTTP 200；匿名 `PUT /favicon.ico` → `code=401` JSON。步驟 2 的匿名查詢 → `code=401` 已確認，有效 token 的資料查詢需 MySQL，未驗證 |
 
 HTTP 證據：`/tmp/mall-spring-boot-3-upgrade/openapi-02.json`、`openapi-04.json`、`openapi-boot.json`、`security-http-results.json`；應用 log：同目錄的 `run-02.log`、`run-04.log`、`run-boot.log`。三個啟動 log 均出現 `{dataSource-1} inited`，未出現 `HikariPool`，但這不替代 AC-6 的 MySQL 查詢驗證。Maven 啟動時有既有 `jvnet-nexus-releases` metadata 的 PKIX 憑證警告，三個應用均成功啟動，未修改 repository 或憑證設定。
 
