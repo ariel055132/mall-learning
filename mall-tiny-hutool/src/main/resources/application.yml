@@ -1,7 +1,5 @@
 server:
   port: 8080
 
-spring:
-  mvc:
-    pathmatch:
-      matching-strategy: ant_path_matcher
+springdoc:
+  packages-to-scan: com.macro.mall.tiny.controller

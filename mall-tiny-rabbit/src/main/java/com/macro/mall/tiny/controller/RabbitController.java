@@ -7,8 +7,7 @@ import com.macro.mall.tiny.fanout.FanoutSender;
 import com.macro.mall.tiny.simple.SimpleSender;
 import com.macro.mall.tiny.topic.TopicSender;
 import com.macro.mall.tiny.work.WorkSender;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -23,7 +22,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
  * @github https://github.com/macrozheng
  */
 @Controller
-@Api(tags = "RabbitController")
 @Tag(name = "RabbitController", description = "RabbitMQ功能测试")
 @RequestMapping("/rabbit")
 public class RabbitController {
@@ -39,7 +37,7 @@ public class RabbitController {
     @Autowired
     private TopicSender topicSender;
 
-    @ApiOperation("简单模式")
+    @Operation(summary = "简单模式")
     @RequestMapping(value = "/simple", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult simpleTest() {
@@ -50,7 +48,7 @@ public class RabbitController {
         return CommonResult.success(null);
     }
 
-    @ApiOperation("工作模式")
+    @Operation(summary = "工作模式")
     @RequestMapping(value = "/work", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult workTest() {
@@ -61,7 +59,7 @@ public class RabbitController {
         return CommonResult.success(null);
     }
 
-    @ApiOperation("发布/订阅模式")
+    @Operation(summary = "发布/订阅模式")
     @RequestMapping(value = "/fanout", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult fanoutTest() {
@@ -72,7 +70,7 @@ public class RabbitController {
         return CommonResult.success(null);
     }
 
-    @ApiOperation("路由模式")
+    @Operation(summary = "路由模式")
     @RequestMapping(value = "/direct", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult directTest() {
@@ -83,7 +81,7 @@ public class RabbitController {
         return CommonResult.success(null);
     }
 
-    @ApiOperation("通配符模式")
+    @Operation(summary = "通配符模式")
     @RequestMapping(value = "/topic", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult topicTest() {

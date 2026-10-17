@@ -2,10 +2,10 @@ package com.macro.mall.tiny.controller;
 
 import com.macro.mall.tiny.common.api.CommonResult;
 import com.macro.mall.tiny.service.UmsAdminService;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiImplicitParam;
-import io.swagger.annotations.ApiImplicitParams;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,7 +27,6 @@ import java.util.Map;
  * @github https://github.com/macrozheng
  */
 @Controller
-@Api(tags = "UmsAdminController")
 @Tag(name = "UmsAdminController", description = "后台用户管理")
 @RequestMapping("/admin")
 public class UmsAdminController {
@@ -39,10 +38,10 @@ public class UmsAdminController {
     private String tokenHead;
 
     @RequestMapping(value = "/login", method = RequestMethod.POST)
-    @ApiOperation(value = "登录以后返回token")
-    @ApiImplicitParams({
-            @ApiImplicitParam(name = "username", value = "用户名", required = true, dataTypeClass = String.class),
-            @ApiImplicitParam(name = "password", value = "密码", required = true, dataTypeClass = String.class)
+    @Operation(summary = "登录以后返回token")
+    @Parameters({
+            @Parameter(name = "username", description = "用户名", required = true, in = ParameterIn.QUERY),
+            @Parameter(name = "password", description = "密码", required = true, in = ParameterIn.QUERY)
     })
     @ApiResponses({
             @ApiResponse(responseCode = "401", description = "暂未登录或token已经过期"),

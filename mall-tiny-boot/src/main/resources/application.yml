@@ -8,9 +8,6 @@ spring:
     password: root
   main:
     allow-circular-references: true
-  mvc:
-    pathmatch:
-      matching-strategy: ant_path_matcher
 
 mybatis:
   mapper-locations:
@@ -24,23 +21,22 @@ jwt:
   expiration: 604800 #JWT的超期限时间(60*60*24)
   tokenHead: Bearer  #JWT负载中拿到开头
 
-springfox:
-  documentation:
-    enabled: true
+springdoc:
+  packages-to-scan: com.macro.mall.tiny.controller
 
 
 secure:
   ignored:
     urls:
       - /
-      - /swagger-ui/
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /v3/api-docs/**
       - /*.html
       - /favicon.ico
       - /**/*.html
       - /**/*.css
       - /**/*.js
-      - /swagger-resources/**
-      - /v2/api-docs/**
       - /actuator/**
 
 management:
@@ -50,7 +46,7 @@ management:
         include: '*'
   endpoint:
     shutdown:
-      enabled: true
+      access: unrestricted
 logging:
   level:
     com.macro.mall.tiny: debug

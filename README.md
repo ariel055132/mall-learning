@@ -17,7 +17,15 @@ mall学习教程，架构、业务、技术要点全方位解析。mall项目（
 
 使用根目錄的 [db-tunnel.sh](db-tunnel.sh) 管理本機到 DB server 的 SSH tunnel，需要 Bash 與 OpenSSH。首次設定時，若尚無 `.db-tunnel.env`，將 [.db-tunnel.env.example](.db-tunnel.env.example) 複製為 `.db-tunnel.env`，填入 `TUNNEL_SSH_TARGET`。本機設定已加入 `.gitignore`；私鑰與 DB 密碼不放入 repo。
 
-首次連到 server 時，先用一般 `ssh user@server` 核對並接受主機金鑰。有密語的私鑰先執行 `ssh-add ~/.ssh/id_ed25519` 解鎖，再從 repo 根目錄執行：
+首次連到 server 時，先用一般 `ssh user@server` 核對並接受主機金鑰。有密語的私鑰，在 macOS 上先執行以下命令並在終端輸入密語（若使用其他私鑰，請替換路徑）：
+
+```bash
+/usr/bin/ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+```
+
+這會將密語保存到 macOS 鑰匙圈。腳本在 macOS 使用系統 `/usr/bin/ssh`，啟用 `UseKeychain=yes` 與 `AddKeysToAgent=yes`，之後 agent 即使因登出、重開機或清除金鑰而變空，也能從已解鎖的鑰匙圈解鎖私鑰。其他系統使用 `ssh-add ~/.ssh/id_ed25519` 載入 agent。
+
+再從 repo 根目錄執行：
 
 ```bash
 ./db-tunnel.sh start   # 在背景建立；重複執行不會重開
@@ -28,6 +36,8 @@ mall学习教程，架构、业务、技术要点全方位解析。mall项目（
 預設路徑為 `127.0.0.1:15432 → SSH server → 127.0.0.1:5432`。DataGrip 可連本機 `127.0.0.1:15432`，並填入實際 PostgreSQL 帳密；沿用此通道時不用再啟用 DataGrip 的 SSH tunnel。`start`／`status` 檢查的是 SSH 通道狀態，不代表遠端 DB 或帳密已驗證。
 
 修改連線設定前先 `stop`。關閉終端視窗不會停止背景 tunnel，重新開機或 SSH 斷線後需重新 `start`。執行狀態與日誌保存在 repo 外的暫存目錄；可用 `DB_TUNNEL_CONFIG=/path/to/config ./db-tunnel.sh start` 選擇另一份可信任的本機設定。此腳本不會將現有 MySQL 範例自動轉換成 PostgreSQL。
+
+若出現 `Permission denied (publickey)`，先用 `ssh-add -l` 檢查 agent。單次 `ssh-add` 載入的金鑰不會跨 agent 重啟保留，而腳本使用 `BatchMode=yes`，不會在背景詢問私鑰密語；macOS 可用上面的鑰匙圈命令完成持久設定後重試。腳本 `db-tunnel.sh` 目前由 `.gitignore` 排除，屬於本機工具。
 
 ## 教程网站
 

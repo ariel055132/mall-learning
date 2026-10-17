@@ -23,8 +23,7 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
 import com.macro.mall.tiny.common.api.CommonResult;
 import com.macro.mall.tiny.domain.PmsBrand;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +31,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -47,14 +46,13 @@ import java.util.*;
  * @github https://github.com/macrozheng
  */
 @RestController
-@Api(tags = "HutoolController")
 @Tag(name = "HutoolController", description = "Hutool工具类测试")
 @RequestMapping("/hutool")
 public class HutoolController {
 
     private static Logger LOGGER = LoggerFactory.getLogger(HutoolController.class);
 
-    @ApiOperation("Convert使用：类型转换工具类")
+    @Operation(summary = "Convert使用：类型转换工具类")
     @GetMapping(value = "/covert")
     public CommonResult covert() {
         //转换为字符串
@@ -72,7 +70,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("DateUtil使用：日期时间工具")
+    @Operation(summary = "DateUtil使用：日期时间工具")
     @GetMapping(value = "/dateUtil")
     public CommonResult dateUtil() {
         //Date、long、Calendar之间的相互转换
@@ -103,7 +101,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("StrUtil使用：字符串工具")
+    @Operation(summary = "StrUtil使用：字符串工具")
     @GetMapping(value = "/strUtil")
     public CommonResult strUtil() {
         //判断是否为空字符串
@@ -120,7 +118,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("ClassPath单一资源访问类：在classPath下查找文件")
+    @Operation(summary = "ClassPath单一资源访问类：在classPath下查找文件")
     @GetMapping("/classPath")
     public CommonResult classPath() throws IOException {
         //获取定义在src/main/resources文件夹中的配置文件
@@ -131,7 +129,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("ReflectUtil使用：Java反射工具类")
+    @Operation(summary = "ReflectUtil使用：Java反射工具类")
     @GetMapping("/reflectUtil")
     public CommonResult reflectUtil() {
         //获取某个类的所有方法
@@ -145,7 +143,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("NumberUtil使用：数字处理工具类")
+    @Operation(summary = "NumberUtil使用：数字处理工具类")
     @GetMapping("/numberUtil")
     public CommonResult numberUtil() {
         double n1 = 1.234;
@@ -166,7 +164,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("BeanUtil使用：JavaBean的工具类")
+    @Operation(summary = "BeanUtil使用：JavaBean的工具类")
     @GetMapping("/beanUtil")
     public CommonResult beanUtil() {
         PmsBrand brand = new PmsBrand();
@@ -186,7 +184,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("CollUtil使用：集合工具类")
+    @Operation(summary = "CollUtil使用：集合工具类")
     @GetMapping("/collUtil")
     public CommonResult collUtil() {
         //数组转换为列表
@@ -207,7 +205,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("MapUtil使用：Map工具类")
+    @Operation(summary = "MapUtil使用：Map工具类")
     @GetMapping("/mapUtil")
     public CommonResult mapUtil() {
         //将多个键值对加入到Map中
@@ -222,7 +220,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("AnnotationUtil使用：注解工具类")
+    @Operation(summary = "AnnotationUtil使用：注解工具类")
     @GetMapping("/annotationUtil")
     public CommonResult annotationUtil() {
         //获取指定类、方法、字段、构造器上的注解列表
@@ -237,7 +235,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("JSONUtil使用：JSON解析工具类")
+    @Operation(summary = "JSONUtil使用：JSON解析工具类")
     @GetMapping("/jsonUtil")
     public CommonResult jsonUtil() {
         PmsBrand brand = new PmsBrand();
@@ -259,7 +257,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("SecureUtil使用：加密解密工具类")
+    @Operation(summary = "SecureUtil使用：加密解密工具类")
     @GetMapping("/secureUtil")
     public CommonResult secureUtil() {
         //MD5加密
@@ -269,7 +267,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("BCrypt使用：BCrypt加密工具类")
+    @Operation(summary = "BCrypt使用：BCrypt加密工具类")
     @GetMapping("/bCrypt")
     public CommonResult bCrypt() {
         //BCrypt加密
@@ -282,7 +280,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("CaptchaUtil使用：图形验证码")
+    @Operation(summary = "CaptchaUtil使用：图形验证码")
     @GetMapping("/captchaUtil")
     public void captchaUtil(HttpServletRequest request, HttpServletResponse response) {
         //生成验证码图片
@@ -299,7 +297,7 @@ public class HutoolController {
         }
     }
 
-    @ApiOperation("Validator使用：字段验证器")
+    @Operation(summary = "Validator使用：字段验证器")
     @GetMapping("/validator")
     public CommonResult validator() {
         //判断是否为邮箱地址
@@ -326,7 +324,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("DigestUtil使用：摘要算法工具类")
+    @Operation(summary = "DigestUtil使用：摘要算法工具类")
     @GetMapping("/digestUtil")
     public CommonResult digestUtil() {
         String password = "123456";
@@ -343,7 +341,7 @@ public class HutoolController {
         return CommonResult.success(null, "操作成功");
     }
 
-    @ApiOperation("HttpUtil使用：Http请求工具类")
+    @Operation(summary = "HttpUtil使用：Http请求工具类")
     @GetMapping("/httpUtil")
     public CommonResult httpUtil() {
         String response = HttpUtil.get("http://localhost:8080/hutool/covert");

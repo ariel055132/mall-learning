@@ -60,7 +60,7 @@ public class MyBatisPlusGenerator {
                 .outputDir(projectPath + "/src/main/java")
                 .author("macro")
                 .disableOpenDir()
-                .enableSwagger()
+                .enableSpringdoc()
                 .dateType(DateType.ONLY_DATE)
                 .build();
     }

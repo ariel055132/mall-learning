@@ -1,6 +1,5 @@
 package com.macro.mall.tiny.mbg.model;
 
-import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 
 public class UmsAdminRoleRelation implements Serializable {

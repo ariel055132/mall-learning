@@ -7,8 +7,7 @@ import com.macro.mall.tiny.common.api.CommonResult;
 import com.macro.mall.tiny.mbg.model.PmsBrand;
 import com.macro.mall.tiny.service.PmsBrandService;
 import com.macro.mall.tiny.service.RedisService;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -27,7 +26,6 @@ import java.util.Set;
  * @github https://github.com/macrozheng
  */
 @Controller
-@Api(tags = "RedisController")
 @Tag(name = "RedisController", description = "redis测试")
 @RequestMapping("/redis")
 public class RedisController {
@@ -36,7 +34,7 @@ public class RedisController {
     @Autowired
     private PmsBrandService brandService;
 
-    @ApiOperation("测试简单缓存")
+    @Operation(summary = "测试简单缓存")
     @RequestMapping(value = "/simpleTest", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult<PmsBrand> simpleTest() {
@@ -48,7 +46,7 @@ public class RedisController {
         return CommonResult.success(cacheBrand);
     }
 
-    @ApiOperation("测试Hash结构的缓存")
+    @Operation(summary = "测试Hash结构的缓存")
     @RequestMapping(value = "/hashTest", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult<PmsBrand> hashTest() {
@@ -62,7 +60,7 @@ public class RedisController {
         return CommonResult.success(cacheBrand);
     }
 
-    @ApiOperation("测试Set结构的缓存")
+    @Operation(summary = "测试Set结构的缓存")
     @RequestMapping(value = "/setTest", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult<Set<Object>> setTest() {
@@ -74,7 +72,7 @@ public class RedisController {
         return CommonResult.success(cachedBrandList);
     }
 
-    @ApiOperation("测试List结构的缓存")
+    @Operation(summary = "测试List结构的缓存")
     @RequestMapping(value = "/listTest", method = RequestMethod.GET)
     @ResponseBody
     public CommonResult<List<Object>> listTest() {
