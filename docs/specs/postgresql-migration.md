@@ -256,10 +256,112 @@ echo 'ALL CHECKS PASSED'
 
 ## 9. 實作備註（由實作者填寫）
 
-<Codex 完成後填寫。審查者會把這一節視為「待驗證的自述」，不會當作證據。
-無則寫「無」。>
+實作日期：2026-10-17。分支為 `postgresql-migration`，基準 HEAD 為 `96bbfcbea24ea549fec6b30cf7f5f1a9488492a9`；本次變更尚未 commit。
 
-- **偏離 spec 之處與原因**：
-- **未完成的項目**：
-- **需要審查者特別注意的地方**：
-- **手動 AC 結果**（AC-4～AC-11，逐條列出：通過／失敗／未驗證，附關鍵輸出；並列出驗證前後的 `N` 與 id 集合比對）：
+- **偏離 spec 之處與原因**：應用實作依 §4 完成。驗收環境依使用者本次對話的補充，Redis 改由 PostgreSQL 所在 Droplet 的 `mall-redis` container 提供，經 SSH tunnel 對應本機 `127.0.0.1:6379`。使用者另明確要求把兩條通道整合進同一個 `db-tunnel.sh`，因此依此補充授權修改該腳本及 `CODEBASE_MAP.md` 的 tunnel 導覽；這是對 §3.2 不修改腳本與 §4.5 文件範圍的例外。`.db-tunnel.env`、應用 Redis 設定與本 spec 第 1～8 節保持原文。
+- **未完成的項目**：無；AC-1～AC-12 均已完成對應的機器關卡、手動驗收或程式碼審查。升級 spec 的 AC-13 仍依原非目標排除。
+- **需要審查者特別注意的地方**：6 個 POM／datasource、5 個 PageHelper／mapper，以及 `plus` 分頁方言均已修改。YAML 的其他鍵與註解、mapper SQL 本體、根 POM、A 組以外模組、產碼設定、安全與 Redis 實作均未改動；沒有新增或修改測試類別、執行產碼器或匯入 SQL。工作開始前的 index 保持原樣，`db-tunnel.sh` 的授權增補留在未 staged 的工作目錄。密碼只經隱藏輸入傳入驗證程序記憶體與子程序環境，JWT 在保存輸出前遮蔽。
+
+### 9.1 第 6 節機器關卡與範圍檢查
+
+- 環境：macOS arm64、Eclipse Temurin JDK `21.0.12.1`、Maven `3.10.0`。
+- 將第 6 節 bash 區塊原樣取出，於 repo 根目錄執行 `bash -eo pipefail /tmp/mall-postgresql-migration-20261017/verify-section6.sh`；exit `0`。完整輸出在 `/tmp/mall-postgresql-migration-20261017/section6.log`。
+- 根 reactor 的 21 個項目（根專案＋20 個模組）全部 `SUCCESS`；AC-1～AC-3 與 AC-12 的文字檢查通過。這是 `test-compile` 與結構檢查，沒有執行測試類別。
+
+```text
+[INFO] BUILD SUCCESS
+[INFO] Total time:  33.699 s
+[INFO] Finished at: 2026-10-17T19:23:07+08:00
+ALL CHECKS PASSED
+```
+
+- `git diff --check` 通過。以初始 SHA-256 核對本 spec 第 9 節前的全部內容、既有 staged diff 與 `.db-tunnel.env` 均未變動；HEAD 與分支未變動。`db-tunnel.sh` 的授權擴充另見 §9.4。
+- AC-12 程式碼審查：`CODEBASE_MAP.md` 已列出 7 個 PostgreSQL 模組，補上 `boot` 的 8088、`01` 無 Swagger UI／OpenAPI、`plus` 的 MyBatis-Plus 分頁與 `IdType.AUTO` 差異，以及 A 組產碼設定仍為 MySQL、無法直接執行與 MBG 重新產碼覆蓋回填設定的限制。更新區域的本地連結均可解析。
+
+### 9.2 手動 AC 結果
+
+實際以 `mvn -B -ntp -pl <模組> spring-boot:run` 分兩批依序啟動 `01`、`plus`、`boot`，再啟動 `04`、`03`、`redis`，透過 `15432`／`6379` tunnel 連到 Droplet 上的 PostgreSQL／Redis，以 `curl` 呼叫 HTTP API，逐一完成後停止應用。Redis 查核經 SSH 執行 `docker exec mall-redis redis-cli --raw ...`。下表為回應中驗收欄位的節錄；完整已遮蔽回應在 `/tmp/mall-postgresql-migration-20261017/live-postgres.json` 與 `live-redis.json`，各模組 log 在同目錄的 `mall-tiny-<模組>.log`。
+
+| AC | 結果 | 關鍵輸出與說明 |
+|----|------|----------------|
+| AC-4 | 通過 | `01`：`GET /brand/list?pageNum=1&pageSize=3` → HTTP 200、`code=200`、`list` 的 id 為 `[1,2,3]`、`total=12`。建立 `pg-migration-20261017-01-57999cdb` → `code=200`、`data.id=61`；讀回同名 id 61。刪除 → `code=200`，再讀回 → `{"code":200,"message":"操作成功","data":null}`。log 有 `{dataSource-1} inited`，無 `HikariPool`。 |
+| AC-5 | 通過 | `plus`：`GET /brand/list?pageNum=1&pageSize=2` → HTTP 200、`code=200`、`list` 的 id 為 `[1,2]`、`total=12`。建立 `pg-migration-20261017-plus-38229382` → `code=200`、`data.id=62`；讀回同名 id 62。刪除 → `code=200`，再讀回 → `{"code":200,"message":"操作成功","data":null}`。 |
+| AC-6 | 通過 | `04`：匿名 `GET /brand/listAll` → HTTP 200、`code=401` JSON；admin 登入取得 token 後 → HTTP 200、`code=200`、`data` 長度 12。macro 登入取得 token 後，`GET /brand/list` → HTTP 200、`{"code":403,"message":"没有相关权限","data":"Access Denied"}`。兩次登入皆 `code=200`，token 已遮蔽。 |
+| AC-7 | 通過 | `boot`，port 8088：匿名 `GET /brand/listAll` → HTTP 200、`{"code":401,"message":"暂未登录或token已经过期","data":"Full authentication is required to access this resource"}`。admin 登入 → `{"code":200,"message":"操作成功","data":{"tokenHead":"Bearer","token":"<redacted>"}}`；帶入 token 後 → HTTP 200、`code=200`、`data` 長度 12，id 集合與驗證前一致。 |
+| AC-8 | 通過 | `03`：`GET /brand/list?pageNum=1&pageSize=3` → HTTP 200、`code=200`、`list` 的 id 為 `[1,2,3]`、`total=12`。取得驗證碼 → `code=200`，`data` 經檢查為 6 位數；`redis-cli EXISTS portal:authCode:13800000000` → `1`，`TTL` → `115`。帶入該碼校驗 → `{"code":200,"message":"验证码校验成功","data":null}`；完成後刪除本次驗證碼 key，`DEL` → `1`。 |
+| AC-9 | 通過 | `redis`：建立 `pg-migration-20261017-redis-cf747fd0` → `code=200`、`data.id=63`；`GET /brand/63` → `code=200`。`redis-cli GET mall::pms:brand:63` 以 `["com.macro.mall.tiny.mbg.model.PmsBrand",{` 開頭，不含 `@class`；`TTL` → `86397`。刪除 id 63 → `code=200`；快取 `EXISTS` → `0`，再讀品牌 → `code=200`、`data=null`。 |
+| AC-10 | 通過 | 步驟 1，`01`：第 1000 頁 → HTTP 200、`{"code":200,"message":"操作成功","data":{"pageNum":1000,"pageSize":3,"totalPage":4,"total":12,"list":[]}}`。步驟 2，`redis`：`GET /brand/999999` → HTTP 200、`{"code":200,"message":"操作成功","data":null}`，`redis-cli EXISTS mall::pms:brand:999999` → `0`。步驟 3，`04`：帶有效 admin token 呼叫 `/brand/abc` → HTTP 400、`{"status":400,"error":"Bad Request","path":"/brand/abc"}`（省略 timestamp）。 |
+| AC-11 | 通過 | 全部手動驗證結束後仍為 `N=12`，id 集合與兩批驗證前完全相同；驗證品牌 61、62、63 均已刪除，見 §9.3。 |
+
+AC-4 的連線池 log 節錄：
+
+```text
+2026-10-17T19:35:37.083+08:00 INFO 93274 --- [main] com.alibaba.druid.pool.DruidDataSource : {dataSource-1} inited
+```
+
+AC-9 的 Redis 值與 TTL 節錄：
+
+```text
+GET mall::pms:brand:63
+["com.macro.mall.tiny.mbg.model.PmsBrand",{"id":63,"name":"pg-migration-20261017-redis-cf747fd0","firstLetter":null,"sort":null,"factoryStatus":null,"showStatus":null,"productCount":null,"productCommentCount":null,"logo":null,"bigPic":null,"brandStory":null}]
+TTL mall::pms:brand:63
+86397
+EXISTS mall::pms:brand:63（HTTP 刪除品牌後）
+0
+```
+
+### 9.3 資料清理
+
+透過 PostgreSQL JDBC 的唯讀連線，在每批驗證前後執行以下查詢；查詢完成後 rollback：
+
+```sql
+SELECT json_build_object(
+  'count', count(*),
+  'ids', coalesce(json_agg(id ORDER BY id), '[]'::json)
+)::text FROM pms_brand;
+```
+
+最初驗證前、兩批驗證交界與全部驗證結束後的結果均為：
+
+```json
+{"count":12,"ids":[1,2,3,4,5,6,21,49,50,51,58,59]}
+```
+
+比對結果：筆數相同、id 集合相同，驗證資料 61／62／63 不在集合內。沒有修改 schema／資料表／sequence，也未重設已前進的 identity。6 個模組的驗證程序皆已停止；PostgreSQL 與 Redis 兩條正式 tunnel 保持運作。原始基準另存於 `/tmp/mall-postgresql-migration-20261017/database-before.json`。
+
+### 9.4 使用者補充：同一腳本管理 PostgreSQL 與 Redis tunnel
+
+使用者要求「直接放在同一個 db-tunnel.sh，這樣可以直接全部啟動」。實作沿用原有 SSH 設定與 PostgreSQL control socket，新增獨立的 Redis control socket；同一命令依序管理兩條連線，既有 PostgreSQL 連線不需重建。
+
+- `./db-tunnel.sh start`：在背景啟動缺少的通道，預設為本機 `15432 → Droplet 127.0.0.1:5432` 與本機 `6379 → Droplet 127.0.0.1:6379`；重複執行不重建已運作的連線。
+- `./db-tunnel.sh status`：分別回報 PostgreSQL／Redis，只有兩條 SSH 通道皆執行中才回傳 0。這是 tunnel 狀態，遠端服務仍須另外啟動。
+- `./db-tunnel.sh stop`：關閉兩條由此腳本管理的通道，重複停止可成功返回。
+- 可選設定為 `TUNNEL_REDIS_LOCAL_PORT`／`TUNNEL_REDIS_HOST`／`TUNNEL_REDIS_PORT`；現有 `.db-tunnel.env` 不需增加欄位，內容未改動。兩服務不可使用相同本機 port。
+
+驗證：`bash -n db-tunnel.sh` 與 `git diff --check` 通過。在獨立的本機 `25432`／`26379` 與 `/tmp` 狀態目錄完成下列實測；證據為 `/tmp/mall-postgresql-migration-20261017/tunnel-verification.json`：
+
+1. 先以原腳本建立僅 PostgreSQL 的通道；新 `status` 正確回傳 1 並顯示 Redis 未執行。
+2. 模擬 Redis 本機 port 被其他程序占用；`start` 回傳 1，PostgreSQL 連線 PID 不變，`status` 不誤報 Redis 已啟動。
+3. 釋放測試 port 後，`start` 補上 Redis；重複 `start` 時兩條連線 PID 均不變，`status` 回傳 0。
+4. PostgreSQL SSLRequest 得到協定回應 `N`，Redis `PING` 回傳 `+PONG`。
+5. `stop` 後兩個測試 port 均已釋放；重複 `stop` 回傳 0，`status` 回傳 1。相同本機 port 的設定會被拒絕。
+6. 原有正式 PostgreSQL PID 全程保持不變。測試後已執行正式 `start` 補上本機 `6379` 通道，`status` 回傳 0；兩條正式通道保持啟動，遠端 container 未被腳本重啟或修改。
+
+### 9.5 使用者複驗（2026-10-18）
+
+使用者在 §9.2 之後親自重跑全部手動 AC。環境與 §9.2 相同：`./db-tunnel.sh start` 建立 `15432`／`6379` 兩條 tunnel，連到 Droplet 上的 PostgreSQL 18.6 與 `mall-redis`（Redis 7.4.11）。應用以 `mvn -pl <模組> spring-boot:run` 逐一啟動，驗證後停止。PostgreSQL 與 Redis 的查詢在 DataGrip 執行，兩個連線分別為 `jdbc:postgresql://localhost:15432/mall_tiny` 與 `jdbc:redis://127.0.0.1:6379/0`，都直接走上述 tunnel，沒有使用 DataGrip 內建的 SSH。驗證基準沿用 §9.3：`N=12`，id 集合 `[1,2,3,4,5,6,21,49,50,51,58,59]`。
+
+| AC | 結果 | 關鍵輸出與說明 |
+|----|------|----------------|
+| AC-4 | 通過 | `01`：`GET /brand/list?pageNum=1&pageSize=3` → `code=200`、`list` 的 id 為 `[1,2,3]`、`total=12`、`totalPage=4`。建立 `manual-test-01` → `data.id=64`；讀回 → `code=200`、`name="manual-test-01"`。刪除 → `code=200`，再讀回 → `{"code":200,"message":"操作成功","data":null}`。使用者確認 log 有 `{dataSource-1} inited`，沒有 `HikariPool`。 |
+| AC-5 | 通過 | `plus`：`GET /brand/list?pageNum=1&pageSize=2` → `code=200`、`total=12`、`list` 長度 2。建立 `manual-test-plus` → `data.id=65`；讀回同名資料。刪除 → `code=200`，再讀回 → `data=null`。 |
+| AC-6 | 通過 | `04`：匿名 `GET /brand/listAll` → `code=401`。admin 登入取得 token（已遮蔽）後 → `code=200`、`data` 長度 12。macro 的 token 呼叫 `GET /brand/list` → `{"code":403,"message":"没有相关权限","data":"Access Denied"}`。 |
+| AC-7 | 通過 | `boot`，port 8088：匿名 `GET /brand/listAll` → `{"code":401,"message":"暂未登录或token已经过期","data":"Full authentication is required to access this resource"}`。admin token 呼叫 → `code=200`、`data` 長度 12。 |
+| AC-8 | 通過 | `03`：`GET /brand/list?pageNum=1&pageSize=3` → `code=200`、`total=12`、`list` 長度 3。取得 6 位數驗證碼；帶入校驗 → `{"code":200,"message":"验证码校验成功","data":null}`。第一組驗證碼校驗前沒有查 TTL，因此另取一組新驗證碼，在 DataGrip 執行 `TTL portal:authCode:13800000000` → `113`。校驗成功不會刪除 key（`UmsMemberServiceImpl.verifyAuthCode`），這次沒有手動 `DEL`，key 會在 120 秒後自然過期。 |
+| AC-9 | 通過 | `redis`：建立 `manual-test-redis` → `data.id=66`；`GET /brand/66` → `code=200`。使用者第一次在 DataGrip 執行 `TTL mall::pms:brand:66` 得到 `-2`，詳見下方說明。再次 `GET /brand/66` 後，經 `6379` tunnel 唯讀查詢：`EXISTS` → `1`、`TTL` → `86220`，值的前 60 字元為 `["com.macro.mall.tiny.mbg.model.PmsBrand",{"id":66,"name":"ma`，符合 `WRAPPER_ARRAY`。這次只讀取前 60 字元，沒有檢查完整值是否含 `@class`（§9.2 已確認不含）。刪除 id 66 → `code=200`；使用者在 DataGrip 確認 `EXISTS mall::pms:brand:66` → `0`。 |
+| AC-10 | 通過 | 步驟 1，`01`：`GET /brand/list?pageNum=1000&pageSize=3` → `HTTP 200`、`{"code":200,"message":"操作成功","data":{"pageNum":1000,"pageSize":3,"totalPage":4,"total":12,"list":[]}}`。步驟 2，`redis`：使用者回報 `GET /brand/999999` 後，`EXISTS mall::pms:brand:999999` → `0`。步驟 3，`04`：帶 admin token 呼叫 `GET /brand/abc` → `HTTP 400`。 |
+| AC-11 | 通過 | 全部驗證結束後，DataGrip 查詢 `SELECT count(*), json_agg(id ORDER BY id) FROM pms_brand` → `12`、`[1, 2, 3, 4, 5, 6, 21, 49, 50, 51, 58, 59]`，與基準相同。`SELECT id, name FROM pms_brand WHERE name LIKE 'manual-test%' OR name LIKE 'pg-migration%'` 沒有結果。 |
+
+**AC-9 第一次 TTL 為 `-2` 的說明**：比對 DataGrip 的資料來源設定（`~/DataGripProjects/default/.idea/dataSources.xml`），Redis 連線與應用相同，都是 `127.0.0.1:6379`、database 0，沒有開 SSH，console 指令也正確，因此排除連到不同 Redis 或 database 的可能。之後查到的 `TTL=86220`，代表 key 約在查詢前 180 秒寫入，時間點與第二次 `GET /brand/66` 相符。因此推測使用者查到 `-2` 時快取確實還不存在，但第一次 `GET` 為什麼沒有寫入快取，沒有查明原因。第二次 `GET` 證實 `@Cacheable` 會寫入正確格式與 TTL 的快取；使用者其後回報以另一筆驗證品牌重測，連同 id 66 與 999999，三個 `EXISTS` 都是 `0`。重測品牌的 id 與 TTL 觀察值沒有記錄在本節，該品牌已刪除（見 AC-11）。
+
+本輪 identity sequence 前進到 66 以上，屬預期行為，沒有重設。
