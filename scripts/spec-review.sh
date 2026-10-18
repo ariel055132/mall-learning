@@ -5,8 +5,8 @@
 # 流程：
 #   1. 檢查 spec 是否可審（無殘留模板提示、有驗收標準、有驗證指令）
 #   2. 組裝材料：spec、（第 2 輪起）上一輪的 Codex 意見與 Claude 的回應紀錄
-#   3. 以唯讀沙盒執行 `codex exec`，並「強制」使用指定的推理強度（預設 ultra）
-#   4. 檢查 codex 實際採用的推理強度；與要求不符就中止，不計入輪次
+#   3. 以唯讀沙盒執行 `codex exec`，固定使用 ultra 推理強度
+#   4. 確認 codex 回報的推理強度為 ultra；不符或無法確認就中止，不計入輪次
 #   5. 寫入 docs/spec-reviews/<task>-p<N>-codex.md，依第一行 VERDICT 回傳 exit code
 #
 # 之後由 Claude Code 的 /spec-respond 依意見修改，直到收斂，再由你用 /spec-approve 核准。
@@ -17,7 +17,7 @@ set -euo pipefail
 # ---------- exit codes ----------
 EX_APPROVE=0   # Codex 認為可進入實作
 EX_CHANGES=1   # Codex 要求修改（review 已寫出）
-EX_ERROR=2     # 用法、環境或工具錯誤（含推理強度未生效）
+EX_ERROR=2     # 用法、環境或工具錯誤（含 ultra 未生效或無法確認）
 EX_LINT=3      # spec 尚不可審（未填完）
 EX_ROUNDS=4    # 已超過最大輪數
 
@@ -30,10 +30,6 @@ SPEC_MAX_ROUNDS="${SPEC_MAX_ROUNDS:-3}"
 CODEX_BIN="${CODEX_BIN:-codex}"
 CODEX_MODEL="${CODEX_MODEL:-}"
 CODEX_EXTRA_ARGS="${CODEX_EXTRA_ARGS:-}"
-# 推理強度：未設定 → ultra；設為空字串 → 不強制（沿用 codex 自己的設定）
-CODEX_REASONING_EFFORT="${CODEX_REASONING_EFFORT-ultra}"
-# 實際強度與要求不符時預設中止；設 1 則只警告
-CODEX_ALLOW_DOWNGRADE="${CODEX_ALLOW_DOWNGRADE:-0}"
 
 # ---------- 輸出 helpers ----------
 if [[ -t 2 ]]; then
@@ -52,6 +48,8 @@ usage() {
 
   <task>                  任務代號，對應 docs/specs/<task>.md
 
+審查固定使用 ultra 推理強度；不符或無法確認時中止，不計入輪次。
+
 選項:
   -r, --round <n>         手動指定輪次（預設：依 docs/spec-reviews 內既有檔案自動遞增）
   -f, --force             略過「上一輪尚未產出回應紀錄」的檢查
@@ -62,8 +60,6 @@ usage() {
   SPEC_MAX_ROUNDS             最大審查輪數（預設 3）
   CODEX_BIN                   codex 執行檔（預設 codex）
   CODEX_MODEL                 指定模型（-m）
-  CODEX_REASONING_EFFORT      推理強度（預設 ultra；設為空字串則不強制）
-  CODEX_ALLOW_DOWNGRADE       設 1：實際強度與要求不符時只警告，不中止
   CODEX_EXTRA_ARGS            額外傳給 `codex exec` 的參數（以空白分隔）
   SPEC_PROMPT_TEMPLATE        審查 prompt 模板路徑
 
@@ -88,15 +84,12 @@ done
 
 if [[ -z "$TASK" ]]; then usage >&2; exit "$EX_ERROR"; fi
 [[ "$TASK" =~ ^[A-Za-z0-9._-]+$ ]] || die "任務代號只能包含英數字與 . _ -"
-if [[ -n "$CODEX_REASONING_EFFORT" ]]; then
-  [[ "$CODEX_REASONING_EFFORT" =~ ^[A-Za-z0-9_-]+$ ]] || die "CODEX_REASONING_EFFORT 只能包含英數字與 _ -"
-fi
 
 # ---------- 環境檢查 ----------
 command -v git >/dev/null 2>&1 || die "找不到 git"
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "請在 git repo 內執行（Codex 需要讀取專案程式碼）"
 cd "$(git rev-parse --show-toplevel)"
-command -v "$CODEX_BIN" >/dev/null 2>&1 || die "找不到 $CODEX_BIN（可用 CODEX_BIN 指定路徑）"
+command -v "$CODEX_BIN" >/dev/null 2>&1 || die "找不到 ${CODEX_BIN}（可用 CODEX_BIN 指定路徑）"
 
 SPEC="$SPEC_DIR/$TASK.md"
 [[ -f "$SPEC" ]] || die "找不到 spec: $SPEC"
@@ -114,7 +107,7 @@ fi
 PREV_ROUND=$(( ROUND - 1 ))
 
 if (( ROUND > SPEC_MAX_ROUNDS )); then
-  warn "已進行 $PREV_ROUND 輪方案審查，超過上限 $SPEC_MAX_ROUNDS。"
+  warn "已進行 $PREV_ROUND 輪方案審查，超過上限 ${SPEC_MAX_ROUNDS}。"
   warn "反覆無法收斂，通常代表需求本身不夠清楚，或雙方卡在品味差異。"
   warn "建議由你直接裁決：把決定告訴 Claude 並記入 §8.1，然後用 /spec-approve 核准；"
   warn "若仍要多審一輪，請加 --round 指定輪次並調高 SPEC_MAX_ROUNDS。"
@@ -158,10 +151,10 @@ fi
 PREV_REVIEW="$SPEC_REVIEW_DIR/$TASK-p$PREV_ROUND-codex.md"
 PREV_RESOLUTION="$SPEC_REVIEW_DIR/$TASK-p$PREV_ROUND-resolution.md"
 if (( ROUND > 1 )); then
-  [[ -f "$PREV_REVIEW" ]] || die "找不到上一輪的 Codex 審查：$PREV_REVIEW（可用 --round 手動指定）"
+  [[ -f "$PREV_REVIEW" ]] || die "找不到上一輪的 Codex 審查：${PREV_REVIEW}（可用 --round 手動指定）"
   if [[ ! -f "$PREV_RESOLUTION" && $FORCE -eq 0 ]]; then
     err "找不到上一輪的回應紀錄：$PREV_RESOLUTION"
-    err "請先在 Claude Code 執行 /spec-respond $TASK（它會把你的口頭意見也記下來，Codex 才看得到）。"
+    err "請先在 Claude Code 執行 /spec-respond ${TASK}（它會把你的口頭意見也記下來，Codex 才看得到）。"
     err "若確定要略過，請加 --force。"
     exit "$EX_ERROR"
   fi
@@ -197,55 +190,39 @@ tpl="${tpl//\{\{MAX_ROUNDS\}\}/$SPEC_MAX_ROUNDS}"
   fi
 } > "$WORK/prompt.md"
 
-# ---------- 4. 呼叫 Codex（唯讀沙盒、強制推理強度） ----------
+# ---------- 4. 呼叫 Codex（唯讀沙盒、固定 ultra 推理強度） ----------
 codex_args=(exec --sandbox read-only)
 [[ -z "$CODEX_MODEL" ]] || codex_args+=(-m "$CODEX_MODEL")
 if [[ -n "$CODEX_EXTRA_ARGS" ]]; then
   read -r -a extra_args <<< "$CODEX_EXTRA_ARGS"
   codex_args+=("${extra_args[@]}")
 fi
-# 推理強度放在額外參數「之後」，讓它優先於 CODEX_EXTRA_ARGS / profile 內的設定。
-# 值以 TOML 字串傳入（含雙引號），例如 model_reasoning_effort="ultra"
-if [[ -n "$CODEX_REASONING_EFFORT" ]]; then
-  codex_args+=(-c "model_reasoning_effort=\"$CODEX_REASONING_EFFORT\"")
-fi
+# 放在額外參數之後，覆寫 CODEX_EXTRA_ARGS、profile 與 Codex 預設的推理強度。
+codex_args+=(-c 'model_reasoning_effort="ultra"')
 codex_args+=(-)   # 從 stdin 讀取 prompt
 
 OUT="$SPEC_REVIEW_DIR/$TASK-p$ROUND-codex.md"
-info "第 $ROUND/$SPEC_MAX_ROUNDS 輪方案審查中（Codex 唯讀，推理強度：${CODEX_REASONING_EFFORT:-沿用 codex 設定}）…"
+info "第 $ROUND/$SPEC_MAX_ROUNDS 輪方案審查中（Codex 唯讀，推理強度：ultra）…"
 if ! "$CODEX_BIN" "${codex_args[@]}" < "$WORK/prompt.md" > "$WORK/raw.md" 2> "$WORK/codex.err"; then
   tail -n 30 "$WORK/codex.err" >&2
   die "Codex 執行失敗，本輪不計入。"
 fi
 [[ -s "$WORK/raw.md" ]] || die "Codex 沒有輸出任何內容，本輪不計入。"
 
-# ---------- 4.5 確認推理強度真的生效 ----------
-# codex exec 啟動時通常會在 stderr 印出「reasoning effort: <值>」；
-# 找不到這行（版本不同）時只警告，不當成失敗。
+# ---------- 4.5 確認 ultra 真的生效 ----------
+# codex exec 啟動時會在 stderr 回報「reasoning effort: <值>」。
+# 缺少這行時也中止，避免在無法確認強度的情況下接受審查結果。
 actual_model="$(grep -m1 -iE '^[[:space:]]*model:' "$WORK/codex.err" | sed -E 's/^[^:]*:[[:space:]]*//' | tr -d '\r' || true)"
 actual_effort="$(grep -m1 -iE '^[[:space:]]*reasoning[[:space:]]+effort:' "$WORK/codex.err" | sed -E 's/^[^:]*:[[:space:]]*//' | tr -d '\r' | tr '[:upper:]' '[:lower:]' || true)"
 actual_effort="${actual_effort%% *}"
 
-if [[ -n "$CODEX_REASONING_EFFORT" ]]; then
-  want="$(printf '%s' "$CODEX_REASONING_EFFORT" | tr '[:upper:]' '[:lower:]')"
-  if [[ -z "$actual_effort" ]]; then
-    warn "無法從 codex 的輸出確認實際的推理強度，請自行確認已生效（model: ${actual_model:-未知}）。"
-  elif [[ "$actual_effort" != "$want" ]]; then
-    msg="推理強度未生效：要求 $want，codex 實際使用 $actual_effort（model: ${actual_model:-未知}）。"
-    if [[ "$CODEX_ALLOW_DOWNGRADE" == "1" ]]; then
-      warn "$msg 已設定 CODEX_ALLOW_DOWNGRADE=1，繼續。"
-    else
-      err "$msg"
-      err "可能是該模型不支援 $want。請用 codex 的 /model 查看可用的模型與等級，並以 CODEX_MODEL 指定。"
-      err "若可接受降級，請設 CODEX_ALLOW_DOWNGRADE=1。本輪不計入。"
-      exit "$EX_ERROR"
-    fi
-  else
-    info "已確認：model ${actual_model:-未知}，reasoning effort $actual_effort"
-  fi
-elif [[ -n "$actual_effort" ]]; then
-  info "codex 使用：model ${actual_model:-未知}，reasoning effort $actual_effort"
+if [[ -z "$actual_effort" ]]; then
+  die "無法從 Codex 的輸出確認 ultra 已生效（model: ${actual_model:-未知}），本輪不計入。"
+elif [[ "$actual_effort" != "ultra" ]]; then
+  err "推理強度未生效：要求 ultra，Codex 實際使用 ${actual_effort}（model: ${actual_model:-未知}）。"
+  die "請以 CODEX_MODEL 指定支援 ultra 的模型。本輪不計入。"
 fi
+info "已確認：model ${actual_model:-未知}，reasoning effort ultra"
 
 # 去掉 VERDICT 行之前的雜訊（若有）
 awk '/^[[:space:]]*\**VERDICT:/ { f = 1 } f' "$WORK/raw.md" > "$WORK/review.md"
@@ -273,7 +250,7 @@ fi
 
 case "$verdict" in
   APPROVE)
-    info "✅ Codex 認為方案可進入實作（blocker $n_block / suggestion $n_sugg / question $n_ques）"
+    info "✅ Codex 認為方案可進入實作（blocker $n_block / suggestion $n_sugg / question ${n_ques}）"
     info "review: $OUT"
     info "下一步：回到 Claude Code，確認沒有想補充的意見後執行 /spec-approve $TASK"
     if (( n_sugg + n_ques > 0 )); then
@@ -283,10 +260,10 @@ case "$verdict" in
     exit "$EX_APPROVE"
     ;;
   REQUEST_CHANGES)
-    warn "❌ Codex 要求修改（blocker $n_block / suggestion $n_sugg / question $n_ques）"
+    warn "❌ Codex 要求修改（blocker $n_block / suggestion $n_sugg / question ${n_ques}）"
     warn "review: $OUT"
     left=$(( SPEC_MAX_ROUNDS - ROUND ))
-    warn "下一步：回到 Claude Code，補充你自己的意見後執行 /spec-respond $TASK（還剩 $left 輪）"
+    warn "下一步：回到 Claude Code，補充你自己的意見後執行 /spec-respond ${TASK}（還剩 $left 輪）"
     echo "$OUT"
     exit "$EX_CHANGES"
     ;;
